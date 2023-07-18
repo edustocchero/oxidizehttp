@@ -15,7 +15,7 @@ pub enum TokenKind {
     Eof,
 }
 
-/// Enum containing the separators.
+/// Enum containing the delimiters.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DelimiterKind {
     LParen,
@@ -46,13 +46,26 @@ impl<'a> Lexer<'a> {
     }
 }
 
-trait IsToken {
+trait Tokens {
     fn is_tkn(&self) -> bool;
+    fn is_tchar(&self) -> bool;
+    fn is_delimiter(&self) -> bool;
 }
 
-impl IsToken for u8 {
+impl Tokens for u8 {
     fn is_tkn(&self) -> bool {
-        self.is_ascii_alphabetic() || matches!(self, b'-')
+        self.is_ascii_alphabetic() || self.is_tchar()
+    }
+
+    fn is_tchar(&self) -> bool {
+        matches!(&self, b'!' | b'#' | b'$' | b'%' | b'&'
+            | b'\'' | b'*' | b'+' | b'-' | b'.'
+            | b'^' | b'_' | b'`' | b'|' | b'~'
+        )
+    }
+
+    fn is_delimiter(&self) -> bool {
+        todo!()
     }
 }
 
@@ -63,11 +76,10 @@ impl Lexer<'_> {
             match u {
                 b'\0' => self.just(TokenKind::Eof),
                 b' ' => self.just(TokenKind::Space),
-                b'!' | b'#' | b'$' | b'%' | b'&' | b'\'' | b'*' | b'+' | b'-' | b'.' | b'^'
-                | b'_' | b'`' | b'|' | b'~' => {
+                u if u.is_tchar() => {
                     let c = self.eat().unwrap();
                     TokenKind::Char(char::from(*c))
-                }
+                },
                 b':' => self.just(TokenKind::Delimiter(DelimiterKind::Colon)),
                 b'/' => self.just(TokenKind::Delimiter(DelimiterKind::Slash)),
                 b'\r' => {
@@ -81,9 +93,7 @@ impl Lexer<'_> {
                 u if u.is_ascii_uppercase() => self.accu_token(),
                 u if u.is_ascii_lowercase() => self.accu_token(),
                 u if u.is_ascii_digit() => self.digit(),
-                _ => {
-                    self.just(TokenKind::Bad)
-                }
+                _ => self.just(TokenKind::Bad),
             }
         } else {
             TokenKind::Eof
