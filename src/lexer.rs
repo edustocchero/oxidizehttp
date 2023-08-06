@@ -6,6 +6,7 @@ pub enum TokenKind {
     Token(String),
     Digit(usize),
     Delimiter(DelimiterKind),
+    DQuote,
     CR,
     LF,
     CRLF,
@@ -58,9 +59,22 @@ impl Tokens for u8 {
     }
 
     fn is_tchar(&self) -> bool {
-        matches!(&self, b'!' | b'#' | b'$' | b'%' | b'&'
-            | b'\'' | b'*' | b'+' | b'-' | b'.'
-            | b'^' | b'_' | b'`' | b'|' | b'~'
+        matches!(
+            &self,
+            b'!' | b'#'
+                | b'$'
+                | b'%'
+                | b'&'
+                | b'\''
+                | b'*'
+                | b'+'
+                | b'-'
+                | b'.'
+                | b'^'
+                | b'_'
+                | b'`'
+                | b'|'
+                | b'~'
         )
     }
 
@@ -79,7 +93,8 @@ impl Lexer<'_> {
                 u if u.is_tchar() => {
                     let c = self.eat().unwrap();
                     TokenKind::Char(char::from(*c))
-                },
+                }
+                b'"' => self.just(TokenKind::DQuote),
                 b':' => self.just(TokenKind::Delimiter(DelimiterKind::Colon)),
                 b'/' => self.just(TokenKind::Delimiter(DelimiterKind::Slash)),
                 b'\r' => {
@@ -145,6 +160,49 @@ impl Iterator for Lexer<'_> {
         match t {
             TokenKind::Eof => None,
             other => Some(other),
+        }
+    }
+}
+
+impl ToString for DelimiterKind {
+    fn to_string(&self) -> String {
+        match self {
+            DelimiterKind::LParen => "(",
+            DelimiterKind::RParen => ")",
+            DelimiterKind::Comma => ",",
+            DelimiterKind::Slash => "/",
+            DelimiterKind::Colon => ":",
+            DelimiterKind::Semicolon => ";",
+            DelimiterKind::GT => ">",
+            DelimiterKind::Equal => "=",
+            DelimiterKind::LT => "<",
+            DelimiterKind::QuestionMark => "?",
+            DelimiterKind::At => "@",
+            DelimiterKind::LBracket => "[",
+            DelimiterKind::Backslash => "\\",
+            DelimiterKind::RBracket => "]",
+            DelimiterKind::LBrace => "{",
+            DelimiterKind::RBrace => "}",
+        }
+        .to_string()
+    }
+}
+
+impl ToString for TokenKind {
+    fn to_string(&self) -> String {
+        match self {
+            TokenKind::Token(tk) => return tk.clone(),
+            TokenKind::Char(c) => c.to_string(),
+            TokenKind::Digit(d) => d.to_string(),
+            TokenKind::Delimiter(dk) => dk.to_string(),
+            TokenKind::DQuote => todo!(),
+            TokenKind::CR => '\r'.to_string(),
+            TokenKind::LF => '\n'.to_string(),
+            TokenKind::CRLF => "\r\n".to_string(),
+            TokenKind::Space => ' '.to_string(),
+            TokenKind::Dot => '.'.to_string(),
+            TokenKind::Bad => todo!(),
+            TokenKind::Eof => todo!(),
         }
     }
 }
