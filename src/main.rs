@@ -1,4 +1,6 @@
 pub mod lexer;
+pub mod http_entity;
+pub mod parser;
 
 use std::{
     io::Read,
@@ -6,7 +8,9 @@ use std::{
     net::{TcpListener, TcpStream}, result,
 };
 
-use lexer::{Lexer, TokenKind};
+use lexer::TokenKind;
+
+use crate::parser::Parser;
 
 const BUFFER_MAX_SIZE: usize = 65535;
 
@@ -31,9 +35,10 @@ fn handle(mut stream: TcpStream) -> Result {
 
     let peekable: &mut Peekable<std::slice::Iter<'_, u8>> = &mut buffer[..size].iter().peekable();
 
-    let lex = Lexer::new(peekable);
-    let t = lex.collect::<Vec<TokenKind>>();
-    println!("T {:?}", t);
+    let mut parser = Parser::new(peekable);
+    let request = parser.request_line();
+
+    println!("request {:#?}", request);
 
     stream.shutdown(Shutdown::Both)?;
     Ok(())

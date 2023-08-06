@@ -2,7 +2,7 @@ use std::iter::Peekable;
 use std::mem::{self};
 
 use crate::http_entity;
-use crate::lexer::{Lexer, TokenKind};
+use crate::lexer::{DelimiterKind, Lexer, TokenKind};
 
 #[derive(Debug)]
 pub struct ParseErr(String);
@@ -44,7 +44,7 @@ impl Parser<'_> {
                 let s = s.clone();
                 self.walk();
                 Ok(s)
-            },
+            }
             _ => Err(ParseErr("Was expected a Token".into())),
         }
     }
@@ -77,12 +77,10 @@ impl Parser<'_> {
     /// Parses a [http_entity::HttpMethod].
     pub fn method(&mut self) -> http_entity::HttpMethod {
         match self.expect_token() {
-            Ok(s) => {
-                match s.as_str() {
-                    "GET" => http_entity::HttpMethod::GET,
-                    "POST" => http_entity::HttpMethod::POST,
-                    _ => http_entity::HttpMethod::BAD,
-                }
+            Ok(s) => match s.as_str() {
+                "GET" => http_entity::HttpMethod::GET,
+                "POST" => http_entity::HttpMethod::POST,
+                _ => http_entity::HttpMethod::BAD,
             },
             Err(_) => http_entity::HttpMethod::BAD,
         }
@@ -97,8 +95,51 @@ impl Parser<'_> {
             tk => {
                 s.push_str(&tk.to_string());
                 self.path(s)
-            },
+            }
         }
+    }
+
+    /// Parses a http 1.1 version.
+    pub fn http_1_1(&mut self) -> Result<http_entity::HttpVsn, ParseErr> {
+        let http = self.expect_token()?;
+
+        println!("{:?}", &http);
+        if !(http == "HTTP") {
+            return Err(ParseErr("Expected 'HTTP' token".into()));
+        }
+
+        let _slash = self.expect(TokenKind::Delimiter(DelimiterKind::Slash))?;
+
+        let _one = self.expect(TokenKind::Digit(1))?;
+        let _dot = self.expect(TokenKind::Char('.'))?;
+        let _one = self.expect(TokenKind::Digit(1))?;
+
+        Ok(http_entity::HttpVsn::HTTP1_1)
+    }
+
+    /// Parses a http request line.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// GET /items HTTP/1.1\r\n
+    /// ```
+    pub fn request_line(&mut self) -> Result<http_entity::HttpEntity, ParseErr> {
+        let method = self.method();
+        self.expect(TokenKind::Space)?;
+        let path = self.path(&mut String::new())?;
+        let http_version = self.http_1_1()?;
+        self.expect(TokenKind::CRLF)?;
+
+        let headers = Default::default();
+
+        let http_entity = http_entity::HttpEntity {
+            method,
+            path,
+            http_version,
+            headers,
+        };
+        Ok(http_entity)
     }
 }
 
