@@ -2,7 +2,7 @@ use std::iter::Peekable;
 use std::mem::{self};
 
 use crate::http_entity;
-use crate::lexer::{DelimiterKind, Lexer, TokenKind};
+use crate::lexer::{DelimiterKind, Lexer, TCharKind, TokenKind};
 
 #[derive(Debug)]
 pub struct ParseErr(String);
@@ -101,6 +101,8 @@ impl Parser<'_> {
 
     /// Parses a http 1.1 version.
     pub fn http_1_1(&mut self) -> Result<http_entity::HttpVsn, ParseErr> {
+        use TokenKind::*;
+
         let http = self.expect_token()?;
 
         println!("{:?}", &http);
@@ -108,19 +110,19 @@ impl Parser<'_> {
             return Err(ParseErr("Expected 'HTTP' token".into()));
         }
 
-        let _slash = self.expect(TokenKind::Delimiter(DelimiterKind::Slash))?;
+        let _slash = self.expect(Delimiter(DelimiterKind::Slash))?;
 
-        let _one = self.expect(TokenKind::Digit(1))?;
-        let _dot = self.expect(TokenKind::Char('.'))?;
-        let _one = self.expect(TokenKind::Digit(1))?;
+        let _one = self.expect(Char(TCharKind::Digit(1)))?;
+        let _dot = self.expect(Char(TCharKind::Dot))?;
+        let _one = self.expect(Char(TCharKind::Digit(1)))?;
 
         Ok(http_entity::HttpVsn::HTTP1_1)
     }
 
     /// Parses a http request line.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// GET /items HTTP/1.1\r\n
     /// ```

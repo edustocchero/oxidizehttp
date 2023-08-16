@@ -2,18 +2,37 @@ use std::iter::Peekable;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenKind {
-    Char(char),
+    Char(TCharKind),
     Token(String),
-    Digit(usize),
     Delimiter(DelimiterKind),
     DQuote,
     CR,
     LF,
     CRLF,
     Space,
-    Dot,
     Bad,
     Eof,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TCharKind {
+    ExclamationMark,  // !
+    Hash,             // #
+    DollarSign,       // $
+    Percent,          // %
+    And,              // &
+    SQuote,           // '
+    Star,             // *
+    Plus,             // +
+    Min,              // -
+    Dot,              // .
+    Circumflex,       // ^
+    Underscore,       // _
+    Backquote,        // `
+    Pipe,             // |
+    Tilde,            // ~
+    Digit(u8),        // 0..9
+    Alpha(char),      // a..z0..9
 }
 
 /// Enum containing the delimiters.
@@ -86,28 +105,52 @@ impl Tokens for u8 {
 impl Lexer<'_> {
     /// Reads a token.
     pub fn lex(&mut self) -> TokenKind {
+        use TokenKind::*;
+
         if let Some(u) = self.peekable.peek() {
             match u {
-                b'\0' => self.just(TokenKind::Eof),
-                b' ' => self.just(TokenKind::Space),
-                u if u.is_tchar() => {
-                    let c = self.eat().unwrap();
-                    TokenKind::Char(char::from(*c))
-                }
-                b'"' => self.just(TokenKind::DQuote),
-                b':' => self.just(TokenKind::Delimiter(DelimiterKind::Colon)),
-                b'/' => self.just(TokenKind::Delimiter(DelimiterKind::Slash)),
+                b'\0' => self.just(Eof),
+                b' ' => self.just(Space),
+                
+                b'!' => self.just(Char(TCharKind::ExclamationMark)),
+                b'#' => self.just(Char(TCharKind::Hash)),
+                b'$' => self.just(Char(TCharKind::DollarSign)),
+                b'%' => self.just(Char(TCharKind::Percent)),
+                b'&' => self.just(Char(TCharKind::And)),
+                b'\'' => self.just(Char(TCharKind::SQuote)),
+                b'*' => self.just(Char(TCharKind::Star)),
+                b'+' => self.just(Char(TCharKind::Plus)),
+                b'-' => self.just(Char(TCharKind::Min)),
+                b'.' => self.just(Char(TCharKind::Dot)),
+                b'^' => self.just(Char(TCharKind::Circumflex)),
+                b'_' => self.just(Char(TCharKind::Underscore)),
+                b'`' => self.just(Char(TCharKind::Backquote)),
+                b'|' => self.just(Char(TCharKind::Pipe)),
+                b'~' => self.just(Char(TCharKind::Tilde)),
+
+                b'"' => self.just(DQuote),
+                b':' => self.just(Delimiter(DelimiterKind::Colon)),
+                b'/' => self.just(Delimiter(DelimiterKind::Slash)),
+
                 b'\r' => {
                     self.eat();
                     match self.peekable.peek() {
-                        Some(&&b'\n') => self.just(TokenKind::CRLF),
-                        _ => self.just(TokenKind::CR),
+                        Some(&&b'\n') => self.just(CRLF),
+                        _ => self.just(CR),
                     }
-                }
-                b'\n' => self.just(TokenKind::LF),
-                u if u.is_ascii_uppercase() => self.accu_token(),
-                u if u.is_ascii_lowercase() => self.accu_token(),
+                },
+                b'\n' => self.just(LF),
+                
                 u if u.is_ascii_digit() => self.digit(),
+                u if u.is_ascii_alphanumeric() => {
+                    match self.peekable.peek() {
+                        Some(v) if v.is_ascii_alphanumeric() => self.accu_token(),
+                        Some(_) | None => {
+                            let a = char::from(*self.eat().unwrap());
+                            self.just(Char(TCharKind::Alpha(a)))
+                        }
+                    }
+                },
                 _ => self.just(TokenKind::Bad),
             }
         } else {
@@ -141,14 +184,14 @@ impl Lexer<'_> {
         TokenKind::Token(seq)
     }
 
-    /// Reads a digit and returns a [TokenKind::Digit].
+    /// Reads a digit and returns a [TokenKind::Char] of [TCharKind::Digit].
     fn digit(&mut self) -> TokenKind {
         let mut digit = String::new();
         {
             let c = self.eat();
             digit.push(char::from(*c.unwrap()));
         }
-        TokenKind::Digit(digit.parse().unwrap())
+        TokenKind::Char(TCharKind::Digit(digit.parse().unwrap()))
     }
 }
 
@@ -192,15 +235,15 @@ impl ToString for TokenKind {
     fn to_string(&self) -> String {
         match self {
             TokenKind::Token(tk) => return tk.clone(),
-            TokenKind::Char(c) => c.to_string(),
-            TokenKind::Digit(d) => d.to_string(),
+            TokenKind::Char(_c) => "".into(),
+            // TokenKind::Digit(d) => d.to_string(),
             TokenKind::Delimiter(dk) => dk.to_string(),
             TokenKind::DQuote => todo!(),
             TokenKind::CR => '\r'.to_string(),
             TokenKind::LF => '\n'.to_string(),
             TokenKind::CRLF => "\r\n".to_string(),
             TokenKind::Space => ' '.to_string(),
-            TokenKind::Dot => '.'.to_string(),
+            // TokenKind::Dot => '.'.to_string(),
             TokenKind::Bad => todo!(),
             TokenKind::Eof => todo!(),
         }
