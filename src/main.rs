@@ -36,7 +36,7 @@ fn handle(mut stream: TcpStream) -> Result {
     let peekable: &mut Peekable<std::slice::Iter<'_, u8>> = &mut buffer[..size].iter().peekable();
 
     let mut parser = Parser::new(peekable);
-    let request = parser.request_line();
+    let request = parser.headers();
 
     println!("request {:#?}", request);
 

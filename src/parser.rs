@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::iter::Peekable;
 use std::mem::{self};
 
-use crate::http_entity;
+use crate::http_entity::{self, HttpEntity};
 use crate::lexer::{DelimiterKind, Lexer, TCharKind, TokenKind};
 
 #[derive(Debug)]
@@ -126,24 +127,50 @@ impl Parser<'_> {
     /// ```
     /// GET /items HTTP/1.1\r\n
     /// ```
-    pub fn request_line(&mut self) -> Result<http_entity::HttpEntity, ParseErr> {
+    pub fn request_line(&mut self) -> Result<RequestLine, ParseErr> {
         let method = self.method();
         self.expect(TokenKind::Space)?;
         let path = self.path(&mut String::new())?;
         let http_version = self.http_1_1()?;
         self.expect(TokenKind::CRLF)?;
 
-        let headers = Default::default();
+        Ok(RequestLine(method, path, http_version))
+    }
 
-        let http_entity = http_entity::HttpEntity {
-            method,
-            path,
-            http_version,
+    pub fn headers(&mut self) -> Result<HttpEntity, ParseErr> {
+        let request_line = self.request_line()?;
+
+        let mut headers = HashMap::<String, String>::new();
+
+        while !self.curr_is(TokenKind::CRLF) {
+            let tk = self.expect_token()?;
+            self.expect(TokenKind::Delimiter(DelimiterKind::Colon))?;
+            self.opt_space();
+
+            let mut val = String::new();
+
+            while !self.curr_is(TokenKind::CRLF) {
+                let str_tk = self.walk().to_string();
+                val.push_str(&str_tk);
+            }
+
+            self.expect(TokenKind::CRLF)?;
+
+            headers.insert(tk, val);
+        }
+
+        let http_entity = HttpEntity {
+            method: request_line.0,
+            http_version: request_line.2,
+            path: request_line.1,
             headers,
         };
         Ok(http_entity)
     }
 }
+
+#[derive(Debug)]
+pub struct RequestLine(http_entity::HttpMethod, String, http_entity::HttpVsn);
 
 #[cfg(test)]
 mod test {

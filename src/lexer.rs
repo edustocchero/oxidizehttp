@@ -16,23 +16,23 @@ pub enum TokenKind {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TCharKind {
-    ExclamationMark,  // !
-    Hash,             // #
-    DollarSign,       // $
-    Percent,          // %
-    And,              // &
-    SQuote,           // '
-    Star,             // *
-    Plus,             // +
-    Min,              // -
-    Dot,              // .
-    Circumflex,       // ^
-    Underscore,       // _
-    Backquote,        // `
-    Pipe,             // |
-    Tilde,            // ~
-    Digit(u8),        // 0..9
-    Alpha(char),      // a..z0..9
+    ExclamationMark, // !
+    Hash,            // #
+    DollarSign,      // $
+    Percent,         // %
+    And,             // &
+    SQuote,          // '
+    Star,            // *
+    Plus,            // +
+    Min,             // -
+    Dot,             // .
+    Circumflex,      // ^
+    Underscore,      // _
+    Backquote,       // `
+    Pipe,            // |
+    Tilde,           // ~
+    Digit(u8),       // 0..9
+    Alpha(char),     // a..z0..9
 }
 
 /// Enum containing the delimiters.
@@ -111,7 +111,7 @@ impl Lexer<'_> {
             match u {
                 b'\0' => self.just(Eof),
                 b' ' => self.just(Space),
-                
+
                 b'!' => self.just(Char(TCharKind::ExclamationMark)),
                 b'#' => self.just(Char(TCharKind::Hash)),
                 b'$' => self.just(Char(TCharKind::DollarSign)),
@@ -138,17 +138,15 @@ impl Lexer<'_> {
                         Some(&&b'\n') => self.just(CRLF),
                         _ => self.just(CR),
                     }
-                },
+                }
                 b'\n' => self.just(LF),
-                
+
                 u if u.is_ascii_digit() => self.digit(),
-                u if u.is_ascii_alphanumeric() => {
-                    match self.peekable.peek() {
-                        Some(v) if v.is_ascii_alphanumeric() => self.accu_token(),
-                        Some(_) | None => {
-                            let a = char::from(*self.eat().unwrap());
-                            self.just(Char(TCharKind::Alpha(a)))
-                        }
+                u if u.is_ascii_alphanumeric() => match self.peekable.peek() {
+                    Some(v) if v.is_ascii_alphanumeric() => self.accu_token(),
+                    Some(_) | None => {
+                        let a = char::from(*self.eat().unwrap());
+                        self.just(Char(TCharKind::Alpha(a)))
                     }
                 },
                 _ => self.just(TokenKind::Bad),
@@ -227,7 +225,7 @@ impl ToString for DelimiterKind {
             DelimiterKind::LBrace => "{",
             DelimiterKind::RBrace => "}",
         }
-        .to_string()
+        .into()
     }
 }
 
@@ -235,17 +233,39 @@ impl ToString for TokenKind {
     fn to_string(&self) -> String {
         match self {
             TokenKind::Token(tk) => return tk.clone(),
-            TokenKind::Char(_c) => "".into(),
-            // TokenKind::Digit(d) => d.to_string(),
+            TokenKind::Char(tck) => tck.to_string(),
             TokenKind::Delimiter(dk) => dk.to_string(),
-            TokenKind::DQuote => todo!(),
-            TokenKind::CR => '\r'.to_string(),
-            TokenKind::LF => '\n'.to_string(),
-            TokenKind::CRLF => "\r\n".to_string(),
-            TokenKind::Space => ' '.to_string(),
-            // TokenKind::Dot => '.'.to_string(),
-            TokenKind::Bad => todo!(),
-            TokenKind::Eof => todo!(),
+            TokenKind::DQuote => "\"".into(),
+            TokenKind::CR => "\r".into(),
+            TokenKind::LF => "\n".into(),
+            TokenKind::CRLF => "\r\n".into(),
+            TokenKind::Space => " ".into(),
+            TokenKind::Bad | TokenKind::Eof => unreachable!(),
         }
+    }
+}
+
+impl ToString for TCharKind {
+    fn to_string(&self) -> String {
+        match self {
+            TCharKind::ExclamationMark => "!",
+            TCharKind::Hash => "#",
+            TCharKind::DollarSign => "$",
+            TCharKind::Percent => "%",
+            TCharKind::And => "&",
+            TCharKind::SQuote => "'",
+            TCharKind::Star => "*",
+            TCharKind::Plus => "+",
+            TCharKind::Min => "-",
+            TCharKind::Dot => ".",
+            TCharKind::Circumflex => "^",
+            TCharKind::Underscore => "_",
+            TCharKind::Backquote => "\\",
+            TCharKind::Pipe => "|",
+            TCharKind::Tilde => "~",
+            TCharKind::Digit(d) => return d.to_string(),
+            TCharKind::Alpha(a) => return a.to_string(),
+        }
+        .into()
     }
 }
